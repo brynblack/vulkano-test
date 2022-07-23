@@ -1,0 +1,13 @@
+[package]
+name = "vulkan-test"
+version = "0.1.0"
+edition = "2021"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+bytemuck = "1.10.0"
+vulkano = "0.30.0"
+vulkano-shaders = "0.30.0"
+vulkano-win = "0.30.0"
+winit = "0.26.1"
