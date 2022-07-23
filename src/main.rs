@@ -151,11 +151,11 @@ fn main() {
                 #version 450
                 layout(location = 0) in vec2 position;
                 layout(location = 1) in vec4 color;
-                layout(location = 2) out vec4 vs_color;
+                layout(location = 0) out vec4 vertColor;
                 
                 void main() {
                     gl_Position = vec4(position, 0.0, 1.0);
-                    vs_color = color;
+                    vertColor = color;
                 }
             "
         }
@@ -166,11 +166,11 @@ fn main() {
             ty: "fragment",
             src: "
                 #version 450
-                layout(location = 2) in vec4 vs_color;
-                layout(location = 0) out vec4 fs_color;
+                layout(location = 0) in vec4 vertColor;
+                layout(location = 0) out vec4 fragColor;
 
                 void main() {
-                    fs_color = vs_color;
+                    fragColor = vertColor;
                 }
             "
         }
