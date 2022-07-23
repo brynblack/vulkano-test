@@ -1,7 +1,7 @@
 use bytemuck::{Pod, Zeroable};
 use std::sync::Arc;
 use vulkano::{
-    buffer::{BufferUsage, CpuAccessibleBuffer, TypedBufferAccess},
+    buffer::{CpuBufferPool, TypedBufferAccess},
     command_buffer::{
         AutoCommandBufferBuilder, CommandBufferUsage, RenderingAttachmentInfo, RenderingInfo,
     },
@@ -141,13 +141,8 @@ fn main() {
         },
     ];
 
-    let vertex_buffer = CpuAccessibleBuffer::from_iter(
-        device.clone(),
-        BufferUsage::vertex_buffer(),
-        false,
-        vertices,
-    )
-    .unwrap();
+    let buffer = CpuBufferPool::vertex_buffer(device.clone());
+    let vertex_buffer = buffer.chunk(vertices.clone()).unwrap();
 
     mod vs {
         vulkano_shaders::shader! {
