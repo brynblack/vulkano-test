@@ -148,11 +148,12 @@ fn main() {
         vertices,
     )
     .unwrap();
+
     mod vs {
         vulkano_shaders::shader! {
             ty: "vertex",
             src: "
-                #version 450
+                #version 460
                 layout(location = 0) in vec2 position;
                 layout(location = 1) in vec4 color;
                 layout(location = 0) out vec4 vertColor;
@@ -169,7 +170,7 @@ fn main() {
         vulkano_shaders::shader! {
             ty: "fragment",
             src: "
-                #version 450
+                #version 460
                 layout(location = 0) in vec4 vertColor;
                 layout(location = 0) out vec4 fragColor;
 
