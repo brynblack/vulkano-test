@@ -142,7 +142,7 @@ fn main() {
     ];
 
     let vertex_buffer =
-        CpuAccessibleBuffer::from_iter(device.clone(), BufferUsage::all(), false, vertices)
+        CpuAccessibleBuffer::from_iter(device.clone(), BufferUsage::vertex_buffer(), false, vertices)
             .unwrap();
     mod vs {
         vulkano_shaders::shader! {
