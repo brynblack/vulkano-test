@@ -36,7 +36,6 @@ use winit::{
 fn main() {
     let instance = Instance::new(InstanceCreateInfo {
         enabled_extensions: vulkano_win::required_extensions(),
-        enumerate_portability: true,
         ..Default::default()
     })
     .unwrap();
@@ -112,7 +111,7 @@ fn main() {
     };
 
     #[repr(C)]
-    #[derive(Clone, Copy, Debug, Default, Zeroable, Pod)]
+    #[derive(Clone, Copy, Default, Pod, Zeroable)]
     struct Vertex {
         position: [f32; 2],
         color: [f32; 4],
