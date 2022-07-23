@@ -43,6 +43,7 @@ fn main() {
 
     let event_loop = EventLoop::new();
     let surface = WindowBuilder::new()
+        .with_title("Vulkan")
         .build_vk_surface(&event_loop, instance.clone())
         .unwrap();
 
