@@ -3,11 +3,11 @@ use std::sync::Arc;
 use vulkano::{
     buffer::{BufferUsage, CpuAccessibleBuffer, TypedBufferAccess},
     command_buffer::{
-        AutoCommandBufferBuilder, CommandBufferUsage, RenderPassBeginInfo, SubpassContents,
+        AutoCommandBufferBuilder, CommandBufferUsage, RenderingAttachmentInfo, RenderingInfo,
     },
     device::{
         physical::{PhysicalDevice, PhysicalDeviceType},
-        Device, DeviceCreateInfo, DeviceExtensions, QueueCreateInfo,
+        Device, DeviceCreateInfo, DeviceExtensions, Features, QueueCreateInfo,
     },
     image::{view::ImageView, ImageAccess, ImageUsage, SwapchainImage},
     impl_vertex,
@@ -15,16 +15,18 @@ use vulkano::{
     pipeline::{
         graphics::{
             input_assembly::InputAssemblyState,
+            render_pass::PipelineRenderingCreateInfo,
             vertex_input::BuffersDefinition,
             viewport::{Viewport, ViewportState},
         },
         GraphicsPipeline,
     },
-    render_pass::{Framebuffer, FramebufferCreateInfo, RenderPass, Subpass},
+    render_pass::{LoadOp, StoreOp},
     swapchain::{
         acquire_next_image, AcquireError, Swapchain, SwapchainCreateInfo, SwapchainCreationError,
     },
     sync::{self, FlushError, GpuFuture},
+    Version,
 };
 use vulkano_win::VkSurfaceBuild;
 use winit::{
@@ -52,6 +54,7 @@ fn main() {
     };
 
     let (physical_device, queue_family) = PhysicalDevice::enumerate(&instance)
+        .filter(|&p| p.api_version() >= Version::V1_3)
         .filter(|&p| p.supported_extensions().is_superset_of(&device_extensions))
         .filter_map(|p| {
             p.queue_families()
@@ -71,6 +74,10 @@ fn main() {
         physical_device,
         DeviceCreateInfo {
             enabled_extensions: device_extensions,
+            enabled_features: Features {
+                dynamic_rendering: true,
+                ..Features::none()
+            },
             queue_create_infos: vec![QueueCreateInfo::family(queue_family)],
             ..Default::default()
         },
@@ -171,25 +178,11 @@ fn main() {
     let vs = vs::load(device.clone()).unwrap();
     let fs = fs::load(device.clone()).unwrap();
 
-    let render_pass = vulkano::single_pass_renderpass!(
-        device.clone(),
-        attachments: {
-            color: {
-                load: Clear,
-                store: Store,
-                format: swapchain.image_format(),
-                samples: 1,
-            }
-        },
-        pass: {
-            color: [color],
-            depth_stencil: {}
-        }
-    )
-    .unwrap();
-
     let pipeline = GraphicsPipeline::start()
-        .render_pass(Subpass::from(render_pass.clone(), 0).unwrap())
+        .render_pass(PipelineRenderingCreateInfo {
+            color_attachment_formats: vec![Some(swapchain.image_format())],
+            ..Default::default()
+        })
         .vertex_input_state(BuffersDefinition::new().vertex::<Vertex>())
         .input_assembly_state(InputAssemblyState::new())
         .vertex_shader(vs.entry_point("main").unwrap(), ())
@@ -204,7 +197,7 @@ fn main() {
         depth_range: 0.0..1.0,
     };
 
-    let mut framebuffers = window_size_dependent_setup(&images, render_pass.clone(), &mut viewport);
+    let mut attachment_image_views = window_size_dependent_setup(&images, &mut viewport);
     let mut recreate_swapchain = false;
     let mut previous_frame_end = Some(sync::now(device.clone()).boxed());
 
@@ -240,8 +233,7 @@ fn main() {
                 };
 
                 swapchain = new_swapchain;
-                framebuffers =
-                    window_size_dependent_setup(&new_images, render_pass.clone(), &mut viewport);
+                attachment_image_views = window_size_dependent_setup(&new_images, &mut viewport);
                 recreate_swapchain = false;
             }
 
@@ -267,20 +259,24 @@ fn main() {
             .unwrap();
 
             builder
-                .begin_render_pass(
-                    RenderPassBeginInfo {
-                        clear_values: vec![Some([0.0, 0.0, 0.0, 1.0].into())],
-                        ..RenderPassBeginInfo::framebuffer(framebuffers[image_num].clone())
-                    },
-                    SubpassContents::Inline,
-                )
+                .begin_rendering(RenderingInfo {
+                    color_attachments: vec![Some(RenderingAttachmentInfo {
+                        load_op: LoadOp::Clear,
+                        store_op: StoreOp::Store,
+                        clear_value: Some([0.0, 0.0, 0.0, 1.0].into()),
+                        ..RenderingAttachmentInfo::image_view(
+                            attachment_image_views[image_num].clone(),
+                        )
+                    })],
+                    ..Default::default()
+                })
                 .unwrap()
                 .set_viewport(0, [viewport.clone()])
                 .bind_pipeline_graphics(pipeline.clone())
                 .bind_vertex_buffers(0, vertex_buffer.clone())
                 .draw(vertex_buffer.len() as u32, 1, 0, 0)
                 .unwrap()
-                .end_render_pass()
+                .end_rendering()
                 .unwrap();
 
             let command_buffer = builder.build().unwrap();
@@ -314,24 +310,13 @@ fn main() {
 
 fn window_size_dependent_setup(
     images: &[Arc<SwapchainImage<Window>>],
-    render_pass: Arc<RenderPass>,
     viewport: &mut Viewport,
-) -> Vec<Arc<Framebuffer>> {
+) -> Vec<Arc<ImageView<SwapchainImage<Window>>>> {
     let dimensions = images[0].dimensions().width_height();
     viewport.dimensions = [dimensions[0] as f32, dimensions[1] as f32];
 
     images
         .iter()
-        .map(|image| {
-            let view = ImageView::new_default(image.clone()).unwrap();
-            Framebuffer::new(
-                render_pass.clone(),
-                FramebufferCreateInfo {
-                    attachments: vec![view],
-                    ..Default::default()
-                },
-            )
-            .unwrap()
-        })
+        .map(|image| ImageView::new_default(image.clone()).unwrap())
         .collect::<Vec<_>>()
 }
