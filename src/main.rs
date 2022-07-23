@@ -141,8 +141,8 @@ fn main() {
         },
     ];
 
-    let buffer = CpuBufferPool::vertex_buffer(device.clone());
-    let vertex_buffer = buffer.chunk(vertices).unwrap();
+    let buffer_pool = CpuBufferPool::vertex_buffer(device.clone());
+    let vertex_buffer = buffer_pool.chunk(vertices).unwrap();
 
     mod vs {
         vulkano_shaders::shader! {
