@@ -32,7 +32,7 @@ use vulkano_win::VkSurfaceBuild;
 use winit::{
     event::{Event, WindowEvent},
     event_loop::{ControlFlow, EventLoop},
-    window::{Window, WindowBuilder},
+    window::{Fullscreen, Window, WindowBuilder},
 };
 
 fn main() {
@@ -45,6 +45,7 @@ fn main() {
     let event_loop = EventLoop::new();
     let surface = WindowBuilder::new()
         .with_title("Vulkan")
+        .with_fullscreen(Some(Fullscreen::Borderless(None)))
         .build_vk_surface(&event_loop, instance.clone())
         .unwrap();
 
