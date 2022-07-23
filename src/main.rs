@@ -40,14 +40,14 @@ fn main() {
         enabled_extensions: vulkano_win::required_extensions(),
         ..Default::default()
     })
-    .unwrap();
+    .expect("Failed to create instance!");
 
     let event_loop = EventLoop::new();
     let surface = WindowBuilder::new()
         .with_title("Vulkan")
         .with_fullscreen(Some(Fullscreen::Borderless(None)))
         .build_vk_surface(&event_loop, instance.clone())
-        .unwrap();
+        .expect("Failed to build surface!");
 
     let device_extensions = DeviceExtensions {
         khr_swapchain: true,
@@ -83,19 +83,19 @@ fn main() {
             ..Default::default()
         },
     )
-    .unwrap();
+    .expect("Failed to create device!");
 
-    let queue = queues.next().unwrap();
+    let queue = queues.next().expect("Failed to create queue!");
 
     let (mut swapchain, images) = {
         let surface_capabilities = physical_device
             .surface_capabilities(&surface, Default::default())
-            .unwrap();
+            .expect("Failed to obtain surface capabilities!");
 
         let image_format = Some(
             physical_device
                 .surface_formats(&surface, Default::default())
-                .unwrap()[0]
+                .expect("Failed to configure image format!")[0]
                 .0,
         );
 
@@ -111,11 +111,11 @@ fn main() {
                     .supported_composite_alpha
                     .iter()
                     .next()
-                    .unwrap(),
+                    .expect("Failed to obtain supported composite alpha!"),
                 ..Default::default()
             },
         )
-        .unwrap()
+        .expect("Failed to create swapchain!")
     };
 
     #[repr(C)]
@@ -142,7 +142,9 @@ fn main() {
     ];
 
     let buffer_pool = CpuBufferPool::vertex_buffer(device.clone());
-    let vertex_buffer = buffer_pool.chunk(vertices).unwrap();
+    let vertex_buffer = buffer_pool
+        .chunk(vertices)
+        .expect("Failed to create vertex buffer!");
 
     mod vs {
         vulkano_shaders::shader! {
@@ -176,8 +178,8 @@ fn main() {
         }
     }
 
-    let vs = vs::load(device.clone()).unwrap();
-    let fs = fs::load(device.clone()).unwrap();
+    let vs = vs::load(device.clone()).expect("Failed to load vertex shader!");
+    let fs = fs::load(device.clone()).expect("Failed to load fragment shader!");
 
     let pipeline = GraphicsPipeline::start()
         .render_pass(PipelineRenderingCreateInfo {
@@ -186,11 +188,19 @@ fn main() {
         })
         .vertex_input_state(BuffersDefinition::new().vertex::<Vertex>())
         .input_assembly_state(InputAssemblyState::new())
-        .vertex_shader(vs.entry_point("main").unwrap(), ())
+        .vertex_shader(
+            vs.entry_point("main")
+                .expect("Could not find main entry point in vertex shader!"),
+            (),
+        )
         .viewport_state(ViewportState::viewport_dynamic_scissor_irrelevant())
-        .fragment_shader(fs.entry_point("main").unwrap(), ())
+        .fragment_shader(
+            fs.entry_point("main")
+                .expect("Could not find main entry point in fragment shader!"),
+            (),
+        )
         .build(device.clone())
-        .unwrap();
+        .expect("Failed to create graphics pipeline!");
 
     let mut viewport = Viewport {
         origin: [0.0, 0.0],
@@ -221,7 +231,10 @@ fn main() {
                 return;
             }
 
-            previous_frame_end.as_mut().unwrap().cleanup_finished();
+            previous_frame_end
+                .as_mut()
+                .expect("Failed to finish cleanup!")
+                .cleanup_finished();
 
             if recreate_swapchain {
                 let (new_swapchain, new_images) = match swapchain.recreate(SwapchainCreateInfo {
@@ -257,7 +270,7 @@ fn main() {
                 queue.family(),
                 CommandBufferUsage::OneTimeSubmit,
             )
-            .unwrap();
+            .expect("Failed to create command buffer!");
 
             builder
                 .begin_rendering(RenderingInfo {
@@ -271,23 +284,23 @@ fn main() {
                     })],
                     ..Default::default()
                 })
-                .unwrap()
+                .expect("Failed to begin rendering!")
                 .set_viewport(0, [viewport.clone()])
                 .bind_pipeline_graphics(pipeline.clone())
                 .bind_vertex_buffers(0, vertex_buffer.clone())
                 .draw(vertex_buffer.len() as u32, 1, 0, 0)
-                .unwrap()
+                .expect("Failed to draw to surface!")
                 .end_rendering()
-                .unwrap();
+                .expect("Failed to end rendering!");
 
-            let command_buffer = builder.build().unwrap();
+            let command_buffer = builder.build().expect("Failed to build command buffer!");
 
             let future = previous_frame_end
                 .take()
-                .unwrap()
+                .expect("Failed to take value out of previous frame!")
                 .join(acquire_future)
                 .then_execute(queue.clone(), command_buffer)
-                .unwrap()
+                .expect("Failed to execute command buffer!")
                 .then_swapchain_present(queue.clone(), swapchain.clone(), image_num)
                 .then_signal_fence_and_flush();
 
@@ -318,6 +331,6 @@ fn window_size_dependent_setup(
 
     images
         .iter()
-        .map(|image| ImageView::new_default(image.clone()).unwrap())
+        .map(|image| ImageView::new_default(image.clone()).expect("Failed to create ImageView!"))
         .collect::<Vec<_>>()
 }
