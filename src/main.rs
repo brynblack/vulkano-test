@@ -1,7 +1,7 @@
 use bytemuck::{Pod, Zeroable};
 use std::sync::Arc;
 use vulkano::{
-    buffer::{CpuBufferPool, TypedBufferAccess},
+    buffer::CpuBufferPool,
     command_buffer::{
         AutoCommandBufferBuilder, CommandBufferUsage, RenderingAttachmentInfo, RenderingInfo,
     },
@@ -126,25 +126,7 @@ fn main() {
     }
     impl_vertex!(Vertex, position, color);
 
-    let vertices = [
-        Vertex {
-            position: [-0.5, -0.25],
-            color: [1.0, 0.0, 0.0, 1.0],
-        },
-        Vertex {
-            position: [0.0, 0.5],
-            color: [0.0, 1.0, 0.0, 1.0],
-        },
-        Vertex {
-            position: [0.25, -0.1],
-            color: [0.0, 0.0, 1.0, 1.0],
-        },
-    ];
-
     let buffer_pool = CpuBufferPool::vertex_buffer(device.clone());
-    let vertex_buffer = buffer_pool
-        .chunk(vertices)
-        .expect("Failed to create vertex buffer!");
 
     mod vs {
         vulkano_shaders::shader! {
@@ -272,6 +254,27 @@ fn main() {
             )
             .expect("Failed to create command buffer!");
 
+            let data = [
+                Vertex {
+                    position: [-0.5, -0.25],
+                    color: [1.0, 0.0, 0.0, 1.0],
+                },
+                Vertex {
+                    position: [0.0, 0.5],
+                    color: [0.0, 1.0, 0.0, 1.0],
+                },
+                Vertex {
+                    position: [0.25, -0.1],
+                    color: [0.0, 0.0, 1.0, 1.0],
+                },
+            ];
+
+            let num_vertices = data.len() as u32;
+
+            let vertex_buffer = buffer_pool
+                .chunk(data)
+                .expect("Failed to create vertex buffer!");
+
             builder
                 .begin_rendering(RenderingInfo {
                     color_attachments: vec![Some(RenderingAttachmentInfo {
@@ -288,7 +291,7 @@ fn main() {
                 .set_viewport(0, [viewport.clone()])
                 .bind_pipeline_graphics(pipeline.clone())
                 .bind_vertex_buffers(0, vertex_buffer.clone())
-                .draw(vertex_buffer.len() as u32, 1, 0, 0)
+                .draw(num_vertices, 1, 0, 0)
                 .expect("Failed to draw to surface!")
                 .end_rendering()
                 .expect("Failed to end rendering!");
